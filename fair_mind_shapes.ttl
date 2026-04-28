@@ -1,0 +1,146 @@
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix fm:    <https://w3id.org/fair-mind/ap#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+#################################################################
+# FAIR-MIND AP — SHACL Validation Shapes v1.0
+# Validates structural integrity of AP variable declarations
+#################################################################
+
+# ── Shape 1: 모든 Variable은 필수 프로퍼티를 가져야 함 ───────────────
+fm:VariableShape a sh:NodeShape ;
+    sh:targetClass fm:Variable ;
+    sh:name "Variable completeness check" ;
+    sh:description "Every AP variable must have a label, layer assignment, ontology term, and mapping type" ;
+
+    sh:property [
+        sh:path rdfs:label ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Variable must have rdfs:label" ;
+    ] ;
+    sh:property [
+        sh:path fm:belongsToLayer ;
+        sh:minCount 1 ;
+        sh:message "Variable must be assigned to an AP layer via fm:belongsToLayer" ;
+    ] ;
+    sh:property [
+        sh:path fm:hasOntologyTerm ;
+        sh:minCount 1 ;
+        sh:message "Variable must have at least one ontology term mapping" ;
+    ] ;
+    sh:property [
+        sh:path fm:mappingType ;
+        sh:minCount 1 ;
+        sh:in ( "exact" "close" "broad" "narrow" ) ;
+        sh:message "mappingType must be one of: exact, close, broad, narrow" ;
+    ] ;
+    sh:property [
+        sh:path fm:pipelineStatus ;
+        sh:minCount 1 ;
+        sh:in ( "implemented" "extension_term" "not_computable" "planned" ) ;
+        sh:message "pipelineStatus must be one of: implemented, extension_term, not_computable, planned" ;
+    ] .
+
+# ── Shape 2: ComputedVariable은 computedFrom이 있어야 함 ─────────────
+fm:ComputedVariableShape a sh:NodeShape ;
+    sh:targetClass fm:ComputedVariable ;
+    sh:name "ComputedVariable source check" ;
+    sh:description "Every computed variable must declare its source signal" ;
+
+    sh:property [
+        sh:path fm:computedFrom ;
+        sh:minCount 1 ;
+        sh:class fm:SignalSource ;
+        sh:message "ComputedVariable must specify fm:computedFrom a fm:SignalSource" ;
+    ] ;
+    sh:property [
+        sh:path fm:hasParamsRef ;
+        sh:minCount 1 ;
+        sh:message "ComputedVariable must reference computation parameters via fm:hasParamsRef" ;
+    ] .
+
+# ── Shape 3: ClinicalVar은 SNOMED 또는 검증된 임상 URI여야 함 ────────
+fm:ClinicalVarShape a sh:NodeShape ;
+    sh:targetClass fm:ClinicalVar ;
+    sh:name "ClinicalVar ontology check" ;
+    sh:description "Clinical variables should use SNOMED CT or equivalent clinical ontology" ;
+
+    sh:property [
+        sh:path fm:uriVerified ;
+        sh:minCount 1 ;
+        sh:message "ClinicalVar must have URI verification status" ;
+    ] ;
+    sh:property [
+        sh:path fm:hasOntologyTerm ;
+        sh:minCount 1 ;
+        sh:or (
+            [ sh:pattern "^http://snomed\\.info/id/" ]
+            [ sh:pattern "^http://purl\\.obolibrary\\.org/obo/" ]
+        ) ;
+        sh:message "ClinicalVar ontology term should use SNOMED CT or OBO URI format" ;
+    ] .
+
+# ── Shape 4: SpectralHRV는 frequencyBand가 있어야 함 ─────────────────
+fm:SpectralHRVShape a sh:NodeShape ;
+    sh:targetClass fm:SpectralHRV ;
+    sh:name "SpectralHRV frequency band check" ;
+    sh:description "Spectral HRV variables (LF, HF) must declare their frequency band" ;
+
+    sh:property [
+        sh:path fm:frequencyBand ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "SpectralHRV must specify fm:frequencyBand (e.g., '0.04-0.15 Hz')" ;
+    ] .
+
+# ── Shape 5: MedicationVar은 CHEBI 또는 MeSH URI여야 함 ───────────────
+fm:MedicationVarShape a sh:NodeShape ;
+    sh:targetClass fm:MedicationVar ;
+    sh:name "MedicationVar ontology check" ;
+
+    sh:property [
+        sh:path fm:hasOntologyTerm ;
+        sh:minCount 1 ;
+        sh:or (
+            [ sh:pattern "^http://purl\\.obolibrary\\.org/obo/CHEBI_" ]
+            [ sh:pattern "^http://id\\.nlm\\.nih\\.gov/mesh/" ]
+        ) ;
+        sh:message "MedicationVar must use CHEBI or MeSH URI" ;
+    ] .
+
+# ── Shape 6: extension_term 변수는 Refinement Notes가 있어야 함 ───────
+fm:ExtensionTermShape a sh:NodeShape ;
+    sh:targetClass fm:Variable ;
+    sh:name "Extension term documentation check" ;
+
+    sh:sparql [
+        sh:message "extension_term variables must have refinementNotes explaining why no established ontology term was used" ;
+        sh:select """
+            PREFIX fm: <https://w3id.org/fair-mind/ap#>
+            SELECT $this
+            WHERE {
+                $this fm:uriVerified "extension_term" .
+                FILTER NOT EXISTS { $this fm:refinementNotes ?notes }
+            }
+        """ ;
+    ] .
+
+# ── Shape 7: Layer 연결이 실제 Layer 개체여야 함 ──────────────────────
+fm:LayerAssignmentShape a sh:NodeShape ;
+    sh:targetClass fm:Variable ;
+    sh:name "Layer assignment validity check" ;
+
+    sh:property [
+        sh:path fm:belongsToLayer ;
+        sh:in (
+            fm:Layer1_Clinical
+            fm:Layer2_Biomarkers
+            fm:Layer3_Provenance
+            fm:Layer4_Medications
+        ) ;
+        sh:message "belongsToLayer must reference one of the four defined AP layers" ;
+    ] .
