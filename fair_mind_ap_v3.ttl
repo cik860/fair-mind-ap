@@ -81,6 +81,7 @@ fm:ECG_source a owl:NamedIndividual,
         fm:ProvenanceVar ;
     rdfs:label "ECG_source" ;
     rdfs:comment "ECG acquisition device/protocol metadata. ECG acquisition event; PROV-O Activity; format: dataset|fs|channels|samples|fmt|adc" ;
+    rdfs:seeAlso <https://physionet.org/content/mimic-iv-ecg/1.0/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -202,6 +203,7 @@ fm:admittime a loinc:LP185883-8,
         fm:Timestamp ;
     rdfs:label "admittime" ;
     rdfs:comment "Admission timestamp" ;
+    rdfs:seeAlso <https://physionet.org/content/mimiciv/3.1/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -261,6 +263,7 @@ fm:dischtime a loinc:MTHU048209,
         fm:Timestamp ;
     rdfs:label "dischtime" ;
     rdfs:comment "Discharge timestamp" ;
+    rdfs:seeAlso <https://physionet.org/content/mimiciv/3.1/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -269,6 +272,7 @@ fm:dod a ncit:C70810,
         fm:Timestamp ;
     rdfs:label "dod" ;
     rdfs:comment "Date of death if known. Mortality endpoint" ;
+    rdfs:seeAlso <https://physionet.org/content/mimiciv/3.1/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -277,6 +281,7 @@ fm:file_name a owl:NamedIndividual,
         fm:Identifier ;
     rdfs:label "file_name" ;
     rdfs:comment "Relative path to WFDB record (.hea/.dat). Relative path to WFDB waveform files (.hea/.dat); source locator" ;
+    rdfs:seeAlso <https://physionet.org/content/mimic-iv-ecg/1.0/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -290,6 +295,7 @@ fm:hadm_id a ncit:C25179,
         fm:Identifier ;
     rdfs:label "hadm_id" ;
     rdfs:comment "Hospital admission identifier. Hospital admission episode identifier; links ECG to clinical context" ;
+    rdfs:seeAlso <https://physionet.org/content/mimiciv/3.1/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -335,6 +341,7 @@ fm:recording_date a owl:NamedIndividual,
         fm:ProvenanceVar ;
     rdfs:label "recording_date" ;
     rdfs:comment "Date and time of ECG measurement. ISO8601 timestamp; renamed from ecg_time" ;
+    rdfs:seeAlso <https://physionet.org/content/mimic-iv-ecg/1.0/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -351,6 +358,7 @@ fm:study_id a owl:NamedIndividual,
         fm:Identifier ;
     rdfs:label "study_id" ;
     rdfs:comment "MIMIC-IV-ECG unique ECG study identifier. MIMIC-IV-ECG recording identifier; PROV-O Entity representing one ECG record" ;
+    rdfs:seeAlso <https://physionet.org/content/mimic-iv-ecg/1.0/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
@@ -359,6 +367,7 @@ fm:subject_id a ncit:C41189,
         fm:Identifier ;
     rdfs:label "subject_id" ;
     rdfs:comment "MIMIC-IV unique patient identifier. MIMIC-IV patient identifier; maps to NCIT Study Subject concept" ;
+    rdfs:seeAlso <https://physionet.org/content/mimiciv/3.1/> ;
     fm:belongsToLayer fm:Layer3_Provenance ;
     fm:pipelineStatus "implemented" .
 
