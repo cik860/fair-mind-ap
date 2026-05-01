@@ -1,139 +1,130 @@
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
 @prefix fm:    <https://w3id.org/fair-mind/ap#> .
-@prefix owl:   <http://www.w3.org/2002/07/owl#> .
-@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix snomed: <http://snomed.info/id/> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
 
-#################################################################
-# FAIR-MIND AP — SHACL Validation Shapes v1.0
-# Validates structural integrity of AP variable declarations
-#################################################################
+# =====================================================
+# FAIR-MIND AP v4 — SHACL Validation Shapes
+# 7 shapes for downstream data validation
+# =====================================================
 
-# ── Shape 1: 모든 Variable은 필수 프로퍼티를 가져야 함 ───────────────
+# S1 — VariableShape: every AP variable must have label, layer, status
 fm:VariableShape a sh:NodeShape ;
     sh:targetClass fm:Variable ;
-    sh:name "Variable completeness check" ;
-    sh:description "Every AP variable must have a label, layer assignment, ontology term, and mapping type" ;
-
     sh:property [
         sh:path rdfs:label ;
         sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:message "Variable must have rdfs:label" ;
+        sh:message "Every variable must have rdfs:label" ;
     ] ;
     sh:property [
         sh:path fm:belongsToLayer ;
         sh:minCount 1 ;
-        sh:message "Variable must be assigned to an AP layer via fm:belongsToLayer" ;
-    ] ;
-    sh:property [
-        sh:path fm:hasOntologyTerm ;
-        sh:minCount 1 ;
-        sh:message "Variable must have at least one ontology term mapping" ;
-    ] ;
-    sh:property [
-        sh:path fm:mappingType ;
-        sh:minCount 1 ;
-        sh:in ( "exact" "close" "broad" "narrow" ) ;
-        sh:message "mappingType must be one of: exact, close, broad, narrow" ;
+        sh:message "Every variable must be assigned to a layer" ;
     ] ;
     sh:property [
         sh:path fm:pipelineStatus ;
         sh:minCount 1 ;
-        sh:in ( "implemented" "extension_term" "not_computable" "planned" ) ;
-        sh:message "pipelineStatus must be one of: implemented, extension_term, not_computable, planned" ;
+        sh:in ( "implemented" "not_computable" "planned" ) ;
+        sh:message "pipelineStatus must be: implemented, not_computable, or planned" ;
     ] .
 
-# ── Shape 2: ComputedVariable은 computedFrom이 있어야 함 ─────────────
+# S2 — ComputedVariableShape: derived variables need source + params
 fm:ComputedVariableShape a sh:NodeShape ;
     sh:targetClass fm:ComputedVariable ;
-    sh:name "ComputedVariable source check" ;
-    sh:description "Every computed variable must declare its source signal" ;
-
     sh:property [
         sh:path fm:computedFrom ;
         sh:minCount 1 ;
         sh:class fm:SignalSource ;
-        sh:message "ComputedVariable must specify fm:computedFrom a fm:SignalSource" ;
+        sh:message "ComputedVariable must specify computedFrom (SignalSource)" ;
     ] ;
     sh:property [
         sh:path fm:hasParamsRef ;
         sh:minCount 1 ;
-        sh:message "ComputedVariable must reference computation parameters via fm:hasParamsRef" ;
+        sh:message "ComputedVariable must reference parameter documentation" ;
     ] .
 
-# ── Shape 3: ClinicalVar은 SNOMED 또는 검증된 임상 URI여야 함 ────────
+# S3 — ClinicalVarShape: clinical variables should have external type
 fm:ClinicalVarShape a sh:NodeShape ;
     sh:targetClass fm:ClinicalVar ;
-    sh:name "ClinicalVar ontology check" ;
-    sh:description "Clinical variables should use SNOMED CT or equivalent clinical ontology" ;
-
     sh:property [
-        sh:path fm:uriVerified ;
+        sh:path rdfs:label ;
         sh:minCount 1 ;
-        sh:message "ClinicalVar must have URI verification status" ;
     ] ;
-    sh:property [
-        sh:path fm:hasOntologyTerm ;
-        sh:minCount 1 ;
-        sh:or (
-            [ sh:pattern "^http://snomed\\.info/id/" ]
-            [ sh:pattern "^http://purl\\.obolibrary\\.org/obo/" ]
-        ) ;
-        sh:message "ClinicalVar ontology term should use SNOMED CT or OBO URI format" ;
+    sh:sparql [
+        sh:message "ClinicalVar should have a direct external type (e.g., snomed:) or rdfs:seeAlso" ;
+        sh:select """
+            SELECT $this WHERE {
+                $this a fm:ClinicalVar .
+                FILTER NOT EXISTS {
+                    $this a ?extType .
+                    FILTER(
+                        CONTAINS(STR(?extType), "snomed.info") ||
+                        CONTAINS(STR(?extType), "obolibrary.org")
+                    )
+                }
+                FILTER NOT EXISTS { $this rdfs:seeAlso ?ext . }
+            }""" ;
     ] .
 
-# ── Shape 4: SpectralHRV는 frequencyBand가 있어야 함 ─────────────────
+# S4 — SpectralHRVShape: frequency-domain variables must specify band
 fm:SpectralHRVShape a sh:NodeShape ;
     sh:targetClass fm:SpectralHRV ;
-    sh:name "SpectralHRV frequency band check" ;
-    sh:description "Spectral HRV variables (LF, HF) must declare their frequency band" ;
-
     sh:property [
         sh:path fm:frequencyBand ;
         sh:minCount 1 ;
         sh:datatype xsd:string ;
-        sh:message "SpectralHRV must specify fm:frequencyBand (e.g., '0.04-0.15 Hz')" ;
+        sh:message "SpectralHRV must specify fm:frequencyBand" ;
     ] .
 
-# ── Shape 5: MedicationVar은 CHEBI 또는 MeSH URI여야 함 ───────────────
+# S5 — MedicationVarShape: medication variables must reference external vocab
 fm:MedicationVarShape a sh:NodeShape ;
     sh:targetClass fm:MedicationVar ;
-    sh:name "MedicationVar ontology check" ;
-
-    sh:property [
-        sh:path fm:hasOntologyTerm ;
-        sh:minCount 1 ;
-        sh:or (
-            [ sh:pattern "^http://purl\\.obolibrary\\.org/obo/CHEBI_" ]
-            [ sh:pattern "^http://id\\.nlm\\.nih\\.gov/mesh/" ]
-        ) ;
-        sh:message "MedicationVar must use CHEBI or MeSH URI" ;
+    sh:sparql [
+        sh:message "MedicationVar should have rdfs:seeAlso or direct type to CHEBI/MeSH" ;
+        sh:select """
+            SELECT $this WHERE {
+                $this a fm:MedicationVar .
+                FILTER NOT EXISTS {
+                    $this a ?extType .
+                    FILTER(
+                        CONTAINS(STR(?extType), "CHEBI") ||
+                        CONTAINS(STR(?extType), "mesh")
+                    )
+                }
+                FILTER NOT EXISTS {
+                    $this rdfs:seeAlso ?ext .
+                    FILTER(
+                        CONTAINS(STR(?ext), "CHEBI") ||
+                        CONTAINS(STR(?ext), "mesh")
+                    )
+                }
+            }""" ;
     ] .
 
-# ── Shape 6: extension_term 변수는 Refinement Notes가 있어야 함 ───────
+# S6 — ExtensionTermShape: fm-only terms must document gap in rdfs:comment
 fm:ExtensionTermShape a sh:NodeShape ;
     sh:targetClass fm:Variable ;
-    sh:name "Extension term documentation check" ;
-
     sh:sparql [
-        sh:message "extension_term variables must have refinementNotes explaining why no established ontology term was used" ;
+        sh:message "Variables without external type or rdfs:seeAlso must have rdfs:comment documenting the gap" ;
         sh:select """
-            PREFIX fm: <https://w3id.org/fair-mind/ap#>
-            SELECT $this
-            WHERE {
-                $this fm:uriVerified "extension_term" .
-                FILTER NOT EXISTS { $this fm:refinementNotes ?notes }
-            }
-        """ ;
+            SELECT $this WHERE {
+                $this a fm:Variable .
+                FILTER NOT EXISTS {
+                    $this a ?extType .
+                    FILTER(!CONTAINS(STR(?extType), "fair-mind"))
+                    FILTER(?extType != owl:NamedIndividual)
+                }
+                FILTER NOT EXISTS { $this rdfs:seeAlso ?ext . }
+                FILTER NOT EXISTS { $this rdfs:comment ?c . }
+            }""" ;
     ] .
 
-# ── Shape 7: Layer 연결이 실제 Layer 개체여야 함 ──────────────────────
+# S7 — LayerAssignmentShape: layer must be one of 4 defined layers
 fm:LayerAssignmentShape a sh:NodeShape ;
     sh:targetClass fm:Variable ;
-    sh:name "Layer assignment validity check" ;
-
     sh:property [
         sh:path fm:belongsToLayer ;
         sh:in (
@@ -142,5 +133,5 @@ fm:LayerAssignmentShape a sh:NodeShape ;
             fm:Layer3_Provenance
             fm:Layer4_Medications
         ) ;
-        sh:message "belongsToLayer must reference one of the four defined AP layers" ;
+        sh:message "belongsToLayer must be one of the 4 defined AP layers" ;
     ] .

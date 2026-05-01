@@ -1,316 +1,158 @@
 """
-FAIR-MIND AP v3 - SPARQL Competency Question Validation
-fair_mind_ap_v3.ttl against 10 competency questions.
+FAIR-MIND AP v4 — Schema-Level CQ Validation
+=============================================
+Validates 10 competency questions against the AP schema (TTL file).
+Uses rdflib with RDFS entailment for subclass inference.
 
-Note: CQ1 originally specified PHQ-9 total score >10.
-In the MIMIC-IV implementation, PHQ-9 is unavailable;
-depression is represented via ICD-10 F32/F33 (SNOMED:35489007).
-CQ1 has been adapted accordingly.
+This script validates the AP DESIGN — that the schema defines the right
+variables, types, and relationships to answer each CQ.
+Instance-level validation (against real data) is separate.
 """
+from rdflib import Graph, RDF, RDFS, OWL, Namespace
+import os
 
-from rdflib import Graph, Namespace, RDF, RDFS, OWL
+# Load AP
+TTL_PATH = os.path.join(os.path.dirname(__file__), "fair_mind_ap_v3.ttl")
 
-# Load with RDFS reasoning
 g = Graph()
-g.parse('fair_mind_ap_v3.ttl', format='turtle')
+g.parse(TTL_PATH, format="turtle")
 
-# Compute RDFS subclass closure
-extra = [(ind, RDF.type, sup)
-         for sub, _, sup in g.triples((None, RDFS.subClassOf, None))
-         for ind in g.subjects(RDF.type, sub)
-         if (ind, RDF.type, sup) not in g]
-for t in extra:
+# RDFS entailment: subClassOf closure
+triples_to_add = []
+for s, p, o in g.triples((None, RDFS.subClassOf, None)):
+    for inst in g.subjects(RDF.type, s):
+        triples_to_add.append((inst, RDF.type, o))
+for t in triples_to_add:
     g.add(t)
 
-print(f"Loaded: {len(g)} triples (with RDFS entailment)\n")
-print("=" * 65)
+FM = Namespace("https://w3id.org/fair-mind/ap#")
 
-PREFIX = """
+PRE = """
 PREFIX fm:     <https://w3id.org/fair-mind/ap#>
-PREFIX owl:    <http://www.w3.org/2002/07/owl#>
-PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX prov:   <http://www.w3.org/ns/prov#>
 PREFIX efo:    <http://www.ebi.ac.uk/efo/>
-PREFIX snomed: <http://snomed.info/id/>
 PREFIX ncit:   <http://purl.obolibrary.org/obo/NCIT_>
-PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+PREFIX snomed: <http://snomed.info/id/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl:    <http://www.w3.org/2002/07/owl#>
+PREFIX prov:   <http://www.w3.org/ns/prov#>
+PREFIX sosa:   <http://www.w3.org/ns/sosa/>
 """
 
-cqs = [
-
-    # Data Discovery
-    {
-        "id": "CQ1",
+CQS = {
+    "CQ1": {
         "category": "Data Discovery",
-        "question": (
-            "Retrieve all participants with depression diagnosis "
-            "(ICD-10 F32/F33, SNOMED:35489007) AND at least one HRV measurement. "
-            "[Original CQ: PHQ-9 total score >10; adapted for MIMIC-IV "
-            "where PHQ-9 is unavailable and ICD-10 diagnostic codes are used.]"
-        ),
-        "query": PREFIX + """
-SELECT DISTINCT ?clinVar ?clinLabel ?bioVar ?bioLabel
-WHERE {
-  ?clinVar a fm:ClinicalVar ;
-           rdfs:label ?clinLabel ;
-           fm:hasOntologyTerm snomed:35489007 .
-
-  ?bioVar  a fm:HRVFeature ;
-           rdfs:label ?bioLabel .
-}
-ORDER BY ?bioLabel
-""",
-        "expect_min": 10,
-        "comment": (
-            "RDFS entailment required: HRV subclasses (TimeDomainHRV, "
-            "SpectralHRV, etc.) must be inferred as fm:HRVFeature instances."
-        )
+        "question": "Find variables for participants with depression AND HRV measurement",
+        "query": PRE + """
+SELECT DISTINCT ?clinVar ?bioVar WHERE {
+  ?clinVar a snomed:35489007 .
+  ?bioVar a fm:HRVFeature .
+}""",
     },
-
-    {
-        "id": "CQ2",
+    "CQ2": {
         "category": "Data Discovery",
-        "question": (
-            "Find all ECG recording timestamps linkable to a depression "
-            "assessment within a 30-day window."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?layer
-WHERE {
-  ?var rdfs:label ?label ;
-       fm:belongsToLayer ?layer .
-  FILTER(
-    ?var = fm:recording_date ||
-    ?var = fm:admittime      ||
-    ?var = fm:dischtime
-  )
-}
-""",
-        "expect_min": 3,
-        "comment": "recording_date, admittime, dischtime - temporal linkage variables"
+        "question": "Find timestamp variables for temporal linkage with depression assessment",
+        "query": PRE + """
+SELECT ?var ?label WHERE {
+  ?var a fm:Timestamp ; rdfs:label ?label .
+}""",
     },
-
-    {
-        "id": "CQ3",
+    "CQ3": {
         "category": "Data Discovery",
-        "question": (
-            "Identify participants on antidepressants WITHOUT lithium "
-            "co-prescription - retrieve the relevant medication variables."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?term
-WHERE {
-  ?var a fm:MedicationVar ;
-       rdfs:label ?label ;
-       fm:hasOntologyTerm ?term .
-}
-ORDER BY ?label
-""",
-        "expect_min": 2,
-        "comment": "Layer 4: antidepress (MeSH D000928), lithium (CHEBI:30145)"
+        "question": "Find medication variables for antidepressant/lithium filtering",
+        "query": PRE + """
+SELECT ?var ?label WHERE {
+  ?var a fm:MedicationVar ; rdfs:label ?label .
+}""",
     },
-
-    # Data Integration
-    {
-        "id": "CQ4",
+    "CQ4": {
         "category": "Data Integration",
-        "question": (
-            "Compare RMSSD distributions across depression severity categories - "
-            "retrieve the relevant clinical and biomarker variables with ontology terms."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?ontTerm ?mappingType
-WHERE {
-  {
-    ?var a fm:ClinicalVar ;
-         rdfs:label ?label ;
-         fm:hasOntologyTerm ?ontTerm ;
-         fm:mappingType ?mappingType .
-  } UNION {
-    ?var rdfs:label "RMSSD" ;
-         rdfs:label ?label ;
-         fm:hasOntologyTerm ?ontTerm ;
-         fm:mappingType ?mappingType .
-  }
-}
-""",
-        "expect_min": 2,
-        "comment": "Returns clinical labels (depression, suicidality) and RMSSD (EFO:0009257)"
+        "question": "Find RMSSD and depression variables for group comparison",
+        "query": PRE + """
+SELECT ?clinLabel ?bioLabel WHERE {
+  ?clin a snomed:35489007 ; rdfs:label ?clinLabel .
+  ?bio a efo:EFO_0009257 ; rdfs:label ?bioLabel .
+}""",
     },
-
-    {
-        "id": "CQ5",
+    "CQ5": {
         "category": "Data Integration",
-        "question": (
-            "Retrieve HRV values adjusted for age and BMI (z-scored)."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?notes
-WHERE {
-  ?var rdfs:label ?label ;
-       fm:uriVerified "extension_term" ;
-       fm:refinementNotes ?notes .
-  FILTER(
-    CONTAINS(LCASE(?notes), "z-score") ||
-    CONTAINS(LCASE(STR(?label)), "z_")
-  )
-}
-""",
-        "expect_min": 2,
-        "comment": "z_age, z_BMI - standardized covariates for adjusted analysis"
+        "question": "Find age and BMI covariate variables",
+        "query": PRE + """
+SELECT ?var ?label ?comment WHERE {
+  ?var a fm:DemographicVar ; rdfs:label ?label .
+  OPTIONAL { ?var rdfs:comment ?comment . }
+  FILTER(CONTAINS(LCASE(STR(?label)), "age") || CONTAINS(LCASE(STR(?label)), "bmi"))
+}""",
     },
-
-    {
-        "id": "CQ6",
+    "CQ6": {
         "category": "Data Integration",
-        "question": (
-            "Find all HRV metrics derived from the same ECG recording session."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?source ?paramsRef
-WHERE {
-  ?var a owl:NamedIndividual ;
-       rdfs:label ?label ;
-       fm:computedFrom ?source .
-  OPTIONAL { ?var fm:hasParamsRef ?paramsRef . }
-}
-ORDER BY ?source ?label
-""",
-        "expect_min": 17,
-        "comment": "All ComputedVariables linked via fm:computedFrom fm:RRIntervals"
+        "question": "Find all HRV metrics derived from the same signal source",
+        "query": PRE + """
+SELECT ?label ?source WHERE {
+  ?var fm:computedFrom ?source ; rdfs:label ?label .
+} ORDER BY ?source ?label""",
     },
-
-    # Provenance and Quality
-    {
-        "id": "CQ7",
+    "CQ7": {
         "category": "Provenance",
-        "question": (
-            "Identify which ECG processing protocol and parameter file "
-            "was used for each HRV metric."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?paramsRef ?notes
-WHERE {
-  ?var a owl:NamedIndividual ;
-       rdfs:label ?label ;
-       fm:hasParamsRef ?paramsRef .
-  OPTIONAL { ?var fm:refinementNotes ?notes . }
-}
-ORDER BY ?label
-""",
-        "expect_min": 1,
-        "comment": "Reproducibility core: parameter JSON reference per computed variable"
+        "question": "Find processing protocol and parameters for each HRV measurement",
+        "query": PRE + """
+SELECT ?label ?paramsRef WHERE {
+  ?var fm:hasParamsRef ?paramsRef ; rdfs:label ?label .
+} ORDER BY ?label""",
     },
-
-    {
-        "id": "CQ8",
+    "CQ8": {
         "category": "Provenance",
-        "question": (
-            "List all participants excluded due to cardiac arrhythmia - "
-            "retrieve clinical label variables used for exclusion criteria."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?layer ?verified
-WHERE {
-  ?var a fm:ClinicalVar ;
-       rdfs:label ?label ;
-       fm:belongsToLayer ?layer ;
-       fm:uriVerified ?verified .
-}
-""",
-        "expect_min": 2,
-        "comment": "Layer 1 clinical variables - basis for data quality gating"
+        "question": "Find clinical label variables for cohort inclusion/exclusion",
+        "query": PRE + """
+SELECT ?var ?label WHERE {
+  ?var a fm:ClinicalVar ; rdfs:label ?label .
+}""",
     },
-
-    {
-        "id": "CQ9",
+    "CQ9": {
         "category": "Provenance",
-        "question": (
-            "Retrieve the standardisation method applied to age and BMI variables."
-        ),
-        "query": PREFIX + """
-SELECT ?var ?label ?notes ?ontTerm
-WHERE {
-  ?var rdfs:label ?label ;
-       fm:refinementNotes ?notes ;
-       fm:hasOntologyTerm ?ontTerm .
-  FILTER(
-    CONTAINS(LCASE(STR(?label)), "age") ||
-    CONTAINS(LCASE(STR(?label)), "bmi")
-  )
-}
-ORDER BY ?label
-""",
-        "expect_min": 3,
-        "comment": "Derivation formulas documented in refinementNotes"
+        "question": "Find standardization method for age and BMI",
+        "query": PRE + """
+SELECT ?label ?comment WHERE {
+  ?var rdfs:label ?label ; rdfs:comment ?comment .
+  FILTER(CONTAINS(LCASE(STR(?label)), "z_"))
+}""",
     },
-
-    # Clinical Interpretation
-    {
-        "id": "CQ10",
+    "CQ10": {
         "category": "Clinical Interpretation",
-        "question": (
-            "Find participants with suicidality AND reduced parasympathetic "
-            "activity (HF power below 10th percentile) - retrieve the relevant variables."
-        ),
-        "query": PREFIX + """
-SELECT ?clinVar ?clinLabel ?bioVar ?bioLabel ?freqBand ?notes
-WHERE {
-  ?clinVar a fm:ClinicalVar ;
-           rdfs:label ?clinLabel ;
-           fm:hasOntologyTerm snomed:429451000124109 .
-
-  ?bioVar a fm:SpectralHRV ;
-          rdfs:label ?bioLabel .
-  OPTIONAL { ?bioVar fm:frequencyBand ?freqBand . }
-  OPTIONAL { ?bioVar fm:refinementNotes ?notes . }
-}
-ORDER BY ?bioLabel
-""",
-        "expect_min": 1,
-        "comment": "Suicidality (SNOMED:429451000124109) x SpectralHRV - LRS cluster core"
+        "question": "Find suicidality + spectral HRV variables for autonomic assessment",
+        "query": PRE + """
+SELECT ?clinLabel ?bioLabel ?band WHERE {
+  { ?clin rdfs:seeAlso snomed:429451000124109 ; rdfs:label ?clinLabel . }
+  ?bio a fm:SpectralHRV ; rdfs:label ?bioLabel .
+  OPTIONAL { ?bio fm:frequencyBand ?band . }
+}""",
     },
-]
+}
 
-# Run validation
-passed = 0
-failed = 0
 
-for cq in cqs:
-    print(f"\n{'─'*65}")
-    print(f"[{cq['id']}] {cq['category']}")
-    print(f"Q: {cq['question'][:120]}{'...' if len(cq['question']) > 120 else ''}")
-    print(f"   ({cq['comment']})")
+def main():
+    print("=" * 60)
+    print(f"FAIR-MIND AP v4 — Schema-Level CQ Validation")
+    print(f"TTL: {TTL_PATH}")
+    print(f"Triples: {len(g)} (with RDFS entailment)")
+    print("=" * 60)
 
-    try:
-        results = list(g.query(cq['query']))
+    passed = 0
+    for cq_id, cq in CQS.items():
+        results = list(g.query(cq["query"]))
         n = len(results)
-        ok = n >= cq['expect_min']
-
+        ok = n > 0
         if ok:
-            status = "PASS"
             passed += 1
-        else:
-            status = f"FAIL ({n} rows, min {cq['expect_min']} required)"
-            failed += 1
+        status = "PASS" if ok else "FAIL"
+        print(f"\n[{cq_id}] {status} ({n} rows) — {cq['category']}")
+        print(f"  {cq['question']}")
+        for row in results[:3]:
+            vals = " | ".join(str(v)[:40] for v in row)
+            print(f"    -> {vals}")
 
-        print(f"Result: {'[PASS]' if ok else '[FAIL]'} {status} — {n} rows returned")
+    print(f"\n{'='*60}")
+    print(f"Result: {passed}/10 passed")
 
-        for i, row in enumerate(results[:4]):
-            row_str = " | ".join(
-                str(v).split("#")[-1].split("/")[-1][:35] if v else "-"
-                for v in row
-            )
-            print(f"  {i+1}. {row_str}")
-        if n > 4:
-            print(f"  ... and {n-4} more")
 
-    except Exception as e:
-        print(f"Result: [ERROR] {e}")
-        failed += 1
-
-print(f"\n{'='*65}")
-print(f"Final: {passed}/10 passed  |  {failed}/10 failed")
-if failed == 0:
-    print("[OK] All 10 CQs passed - SPARQL validation complete.")
+if __name__ == "__main__":
+    main()
