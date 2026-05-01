@@ -5,6 +5,7 @@
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 @prefix prov:  <http://www.w3.org/ns/prov#> .
 @prefix dc:    <http://purl.org/dc/terms/> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
 @prefix efo:   <http://www.ebi.ac.uk/efo/> .
 @prefix ncit:  <http://purl.obolibrary.org/obo/NCIT_> .
 @prefix snomed: <http://snomed.info/id/> .
@@ -22,8 +23,17 @@
 
 <https://w3id.org/fair-mind/ap> a owl:Ontology ;
     dc:title "FAIR-MIND Application Profile" ;
-    dc:description "AP for integrating depression clinical data with ECG-derived HRV biomarkers" ;
-    owl:versionInfo "v3.0" .
+    dc:description "A variable-level Application Profile for integrating depression clinical data with ECG-derived HRV biomarkers, composing 8 established ontologies across 4 semantic layers." ;
+    dc:creator "Inkyung Choi"^^xsd:string ;
+    dc:contributor "Milena Čukić"^^xsd:string ;
+    dc:created "2026-04-29"^^xsd:date ;
+    dc:publisher "Sungkyunkwan University"^^xsd:string ;
+    dc:license <https://creativecommons.org/licenses/by/4.0/> ;
+    dc:rights "This work is licensed under Creative Commons Attribution 4.0 International (CC BY 4.0)." ;
+    dc:source <https://doi.org/10.5281/zenodo.19856971> ;
+    owl:versionInfo "v3.0" ;
+    owl:versionIRI <https://w3id.org/fair-mind/ap/v3.0> ;
+    rdfs:seeAlso <https://github.com/cik860/fair-mind-ap> .
 
 #################################################################
 # Class Hierarchy
