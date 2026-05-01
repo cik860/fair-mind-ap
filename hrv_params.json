@@ -1,0 +1,75 @@
+{
+  "pipeline": {
+    "library": "neurokit2",
+    "version": ">=0.2.7",
+    "sampling_rate_hz": 500,
+    "ecg_duration_seconds": 10,
+    "lead_used": "Lead I (index 0)",
+    "dataset": "MIMIC-IV-ECG v1.0"
+  },
+  "preprocessing": {
+    "r_peak_method": "neurokit",
+    "quality_check": "nk.ecg_quality()",
+    "artifact_correction": "default",
+    "min_rr_intervals": 5
+  },
+  "time_domain": {
+    "metrics": ["RMSSD", "SDNN", "pNN20", "pNN50", "MAD"],
+    "unit": "ms",
+    "function": "nk.hrv_time()",
+    "note": "Computed from RR intervals extracted via R-peak detection"
+  },
+  "poincare": {
+    "metrics": ["SD1", "SD2"],
+    "unit": "ms",
+    "function": "nk.hrv_nonlinear() → Poincaré indices"
+  },
+  "spectral": {
+    "method": "Lomb-Scargle Periodogram",
+    "metrics": ["LF", "HF", "LFnu", "TP"],
+    "LF_band_hz": [0.04, 0.15],
+    "HF_band_hz": [0.15, 0.40],
+    "unit": "ms^2",
+    "function": "nk.hrv_frequency(method='lomb')",
+    "note": "Ultra-short-term estimate from 10s ECG; reliability limited per Shaffer & Ginsberg (2017)"
+  },
+  "nonlinear": {
+    "DFA": {
+      "library": "nolds",
+      "function": "nolds.dfa()",
+      "order": 1,
+      "note": "Short-term scaling exponent (alpha1)"
+    },
+    "HFD": {
+      "library": "antropy",
+      "function": "antropy.higuchi_fd()",
+      "kmax": "min(10, N/2)",
+      "note": "Higuchi fractal dimension of RR interval series"
+    },
+    "SampEn": {
+      "library": "antropy",
+      "function": "antropy.sample_entropy()",
+      "m": 2,
+      "r_factor": 0.2,
+      "note": "r = 0.2 * std(RR); inf replaced with NaN"
+    },
+    "ApEn": {
+      "library": "antropy",
+      "function": "antropy.app_entropy()",
+      "m": 2,
+      "r_factor": 0.2
+    }
+  },
+  "breathing_rate": {
+    "metric": "BR",
+    "unit": "breaths/min",
+    "method": "ECG-derived respiration (EDR)",
+    "function": "nk.ecg_rsp()",
+    "library": "neurokit2"
+  },
+  "heart_rate": {
+    "metric": "BPM",
+    "unit": "beats/min",
+    "formula": "60000 / mean(RR_ms)"
+  }
+}
