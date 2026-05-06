@@ -93,7 +93,7 @@ fm:HF a owl:NamedIndividual,
     fm:computedFrom fm:RRIntervals ;
     fm:frequencyBand "0.15-0.4 Hz" ;
     fm:hasParamsRef "https://github.com/cik860/fair-mind-ap/blob/main/hrv_params.json"^^xsd:anyURI ;
-    fm:pipelineStatus "implemented" .
+    fm:pipelineStatus "not_computed" .
 
 fm:HFD a owl:NamedIndividual,
         fm:NonlinearHRV ;
@@ -112,7 +112,7 @@ fm:LF a owl:NamedIndividual,
     fm:computedFrom fm:RRIntervals ;
     fm:frequencyBand "0.04-0.15 Hz" ;
     fm:hasParamsRef "https://github.com/cik860/fair-mind-ap/blob/main/hrv_params.json"^^xsd:anyURI ;
-    fm:pipelineStatus "implemented" .
+    fm:pipelineStatus "not_computed" .
 
 fm:LFnu a owl:NamedIndividual,
         fm:SpectralHRV ;
@@ -122,7 +122,7 @@ fm:LFnu a owl:NamedIndividual,
     fm:computedFrom fm:RRIntervals ;
     fm:frequencyBand "0.04-0.15 Hz (normalized)" ;
     fm:hasParamsRef "https://github.com/cik860/fair-mind-ap/blob/main/hrv_params.json"^^xsd:anyURI ;
-    fm:pipelineStatus "implemented" .
+    fm:pipelineStatus "not_computed" .
 
 fm:MAD a owl:NamedIndividual,
         fm:TimeDomainHRV ;
@@ -196,7 +196,7 @@ fm:TP a owl:NamedIndividual,
     fm:computedFrom fm:RRIntervals ;
     fm:frequencyBand "0.003-0.4 Hz" ;
     fm:hasParamsRef "https://github.com/cik860/fair-mind-ap/blob/main/hrv_params.json"^^xsd:anyURI ;
-    fm:pipelineStatus "implemented" .
+    fm:pipelineStatus "not_computed" .
 
 fm:admittime a loinc:LP185883-8,
         owl:NamedIndividual,
