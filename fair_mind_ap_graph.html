@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAIR-MIND AP — Interactive Schema Graph</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafaf8;color:#3d3d3a}
+@media(prefers-color-scheme:dark){body{background:#1a1a18;color:#c2c0b6}}
+h1{font-size:18px;font-weight:500;text-align:center;padding:16px 0 4px}
+.sub{font-size:13px;text-align:center;opacity:.6;padding-bottom:12px}
+#graph{width:100%;max-width:800px;height:600px;margin:0 auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;padding:12px 16px;font-size:12px;opacity:.7}
+.legend span{display:flex;align-items:center;gap:4px}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.sq{width:10px;height:10px;border-radius:2px;display:inline-block}
+.dm{width:9px;height:9px;transform:rotate(45deg);display:inline-block}
+.info{max-width:700px;margin:8px auto;padding:12px 16px;font-size:12px;opacity:.5;text-align:center;line-height:1.6}
+a{color:#378ADD}
+</style>
+</head>
+<body>
+<h1>FAIR-MIND Application Profile</h1>
+<p class="sub">Interactive schema graph — 39 variables · 8 ontologies · 5 native properties · 415 triples</p>
+<div id="graph"></div>
+<div class="legend">
+<span><span class="dot" style="background:#D85A30"></span>Clinical</span>
+<span><span class="dot" style="background:#1D9E75"></span>Biomarkers</span>
+<span><span class="dot" style="background:#378ADD"></span>Provenance</span>
+<span><span class="dot" style="background:#D4537E"></span>Medications</span>
+<span><span class="dot" style="background:#888"></span>Schema</span>
+<span><span class="dm" style="background:#7F77DD"></span>Property</span>
+<span><span class="sq" style="background:#5F5E5A"></span>Layer</span>
+</div>
+<p class="info">
+Namespace: <a href="https://w3id.org/fair-mind/ap#">https://w3id.org/fair-mind/ap#</a> ·
+SPARQL: <a href="http://15.134.222.193:7200/sparql">endpoint</a> ·
+GitHub: <a href="https://github.com/cik860/fair-mind-ap">cik860/fair-mind-ap</a> ·
+DOI: <a href="https://doi.org/10.5281/zenodo.19856971">10.5281/zenodo.19856971</a>
+</p>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const dark = matchMedia('(prefers-color-scheme:dark)').matches;
+const txtC = dark?'#c2c0b6':'#3d3d3a';
+const lineC = dark?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)';
+const propC = dark?'rgba(255,255,255,0.25)':'rgba(0,0,0,0.2)';
+const colors = {clinical:'#D85A30',biomarker:'#1D9E75',provenance:'#378ADD',medication:'#D4537E',schema:'#888780',property:'#7F77DD',layer:'#5F5E5A'};
+
+const nodes = [
+{id:'Variable',type:'class',group:'schema',r:24},
+{id:'ComputedVariable',type:'class',group:'schema',r:17},
+{id:'HRVFeature',type:'class',group:'schema',r:15},
+{id:'TimeDomainHRV',type:'class',group:'biomarker',r:14},
+{id:'SpectralHRV',type:'class',group:'biomarker',r:14},
+{id:'NonlinearHRV',type:'class',group:'biomarker',r:14},
+{id:'PoincareHRV',type:'class',group:'biomarker',r:14},
+{id:'PhysiologicalRate',type:'class',group:'biomarker',r:13},
+{id:'ClinicalVar',type:'class',group:'clinical',r:14},
+{id:'DemographicVar',type:'class',group:'provenance',r:14},
+{id:'MedicationVar',type:'class',group:'medication',r:14},
+{id:'ProvenanceVar',type:'class',group:'provenance',r:14},
+{id:'SignalSource',type:'class',group:'schema',r:15},
+{id:'ECGSignal',type:'class',group:'schema',r:11},
+{id:'RRIntervals',type:'class',group:'schema',r:11},
+{id:'Timestamp',type:'class',group:'provenance',r:11},
+{id:'Identifier',type:'class',group:'provenance',r:11},
+{id:'APLayer',type:'class',group:'schema',r:17},
+{id:'Layer1_Clinical',type:'layer',group:'clinical',r:14},
+{id:'Layer2_Biomarkers',type:'layer',group:'biomarker',r:14},
+{id:'Layer3_Provenance',type:'layer',group:'provenance',r:14},
+{id:'Layer4_Medications',type:'layer',group:'medication',r:14},
+{id:'belongsToLayer',type:'property',group:'property',r:10},
+{id:'computedFrom',type:'property',group:'property',r:10},
+{id:'pipelineStatus',type:'property',group:'property',r:10},
+{id:'hasParamsRef',type:'property',group:'property',r:10},
+{id:'frequencyBand',type:'property',group:'property',r:10},
+];
+const links = [
+{source:'ComputedVariable',target:'Variable',type:'subclass'},
+{source:'HRVFeature',target:'ComputedVariable',type:'subclass'},
+{source:'TimeDomainHRV',target:'HRVFeature',type:'subclass'},
+{source:'SpectralHRV',target:'HRVFeature',type:'subclass'},
+{source:'NonlinearHRV',target:'HRVFeature',type:'subclass'},
+{source:'PoincareHRV',target:'HRVFeature',type:'subclass'},
+{source:'PhysiologicalRate',target:'ComputedVariable',type:'subclass'},
+{source:'ClinicalVar',target:'Variable',type:'subclass'},
+{source:'DemographicVar',target:'Variable',type:'subclass'},
+{source:'MedicationVar',target:'Variable',type:'subclass'},
+{source:'ProvenanceVar',target:'Variable',type:'subclass'},
+{source:'ECGSignal',target:'SignalSource',type:'subclass'},
+{source:'RRIntervals',target:'SignalSource',type:'subclass'},
+{source:'Timestamp',target:'ProvenanceVar',type:'subclass'},
+{source:'Identifier',target:'ProvenanceVar',type:'subclass'},
+{source:'Layer1_Clinical',target:'APLayer',type:'instance'},
+{source:'Layer2_Biomarkers',target:'APLayer',type:'instance'},
+{source:'Layer3_Provenance',target:'APLayer',type:'instance'},
+{source:'Layer4_Medications',target:'APLayer',type:'instance'},
+{source:'Variable',target:'belongsToLayer',type:'prop'},
+{source:'belongsToLayer',target:'APLayer',type:'prop'},
+{source:'ComputedVariable',target:'computedFrom',type:'prop'},
+{source:'computedFrom',target:'SignalSource',type:'prop'},
+{source:'Variable',target:'pipelineStatus',type:'prop'},
+{source:'ComputedVariable',target:'hasParamsRef',type:'prop'},
+{source:'SpectralHRV',target:'frequencyBand',type:'prop'},
+];
+
+const el = document.getElementById('graph');
+const W = el.clientWidth || 800, H = el.clientHeight || 600;
+const svg = d3.select('#graph').append('svg')
+  .attr('width',W).attr('height',H)
+  .attr('viewBox',`0 0 ${W} ${H}`);
+svg.append('defs').append('marker').attr('id','ah')
+  .attr('viewBox','0 0 10 10').attr('refX',20).attr('refY',5)
+  .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto')
+  .append('path').attr('d','M0,0L10,5L0,10').attr('fill',lineC);
+
+const sim = d3.forceSimulation(nodes)
+  .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>d.type==='subclass'?65:d.type==='prop'?55:75))
+  .force('charge',d3.forceManyBody().strength(-220))
+  .force('center',d3.forceCenter(W/2,H/2))
+  .force('collision',d3.forceCollide().radius(d=>d.r+10));
+
+const link = svg.selectAll('.link').data(links).join('line')
+  .attr('stroke',d=>d.type==='prop'?propC:lineC)
+  .attr('stroke-width',d=>d.type==='prop'?1.5:1)
+  .attr('stroke-dasharray',d=>d.type==='prop'?'5 3':'none')
+  .attr('marker-end','url(#ah)');
+
+const node = svg.selectAll('.nd').data(nodes).join('g')
+  .attr('cursor','grab')
+  .call(d3.drag()
+    .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y})
+    .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y})
+    .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null}));
+
+node.each(function(d){
+  const g = d3.select(this);
+  const c = d.group==='property'?colors.property:colors[d.group];
+  const fc = dark?(c+'30'):(c+'18');
+  if(d.type==='property'){
+    const s=d.r*1.5;
+    g.append('rect').attr('x',-s/2).attr('y',-s/2).attr('width',s).attr('height',s)
+     .attr('rx',3).attr('fill',fc).attr('stroke',c).attr('stroke-width',.8)
+     .attr('transform','rotate(45)');
+  } else if(d.type==='layer'){
+    const s=d.r*1.6;
+    g.append('rect').attr('x',-s/2).attr('y',-s/2).attr('width',s).attr('height',s)
+     .attr('rx',3).attr('fill',fc).attr('stroke',c).attr('stroke-width',1);
+  } else {
+    g.append('circle').attr('r',d.r).attr('fill',fc).attr('stroke',c)
+     .attr('stroke-width',d.id==='Variable'?1.8:.8);
+  }
+  g.append('text').text(d.id.replace(/_/g,' '))
+   .attr('dy',d.r+13).attr('text-anchor','middle')
+   .attr('fill',txtC).attr('font-size',d.r>16?'11px':'10px')
+   .attr('font-family','-apple-system,BlinkMacSystemFont,sans-serif');
+});
+
+sim.on('tick',()=>{
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+      .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform',d=>`translate(${Math.max(35,Math.min(W-35,d.x))},${Math.max(35,Math.min(H-45,d.y))})`);
+});
+</script>
+</body>
+</html>
