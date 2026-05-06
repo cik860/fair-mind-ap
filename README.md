@@ -1,6 +1,7 @@
 # FAIR-MIND Application Profile
 
 A variable-level vocabulary for integrating depression clinical data with ECG-derived HRV biomarkers, composing 8 established ontologies across 4 semantic layers.
+diagram .html -> https://cik860.github.io/fair-mind-ap/fair_mind_ap_graph.html
 
 ## Resources
 
